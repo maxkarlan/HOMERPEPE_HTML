@@ -40,8 +40,14 @@ function preload() {
     circleDiameter = Math.min(windowWidth, windowHeight);
     let desiredImageHeight = circleDiameter * 2;
 
+    let images = ["https://app.ardrive.io/#/file/492ec1c3-d186-4081-96d7-16010e3f44e9/view",
+                  "https://app.ardrive.io/#/file/84b3e2c8-2455-4440-95d4-7c5392c2f816/view",
+                  "https://app.ardrive.io/#/file/6bb58c7b-3918-44fe-a422-d760d825a577/view",
+                  "https://app.ardrive.io/#/file/2ec4d0b5-ac66-40a6-aa35-5603f19b978c/view",
+                  "https://app.ardrive.io/#/file/78b4e53b-24d6-4bfd-b767-22e3edb53322/view",
+                  "https://app.ardrive.io/#/file/a0ced886-3401-44b4-a526-e1c7e86a595e/view"]
     for (let i = 0; i < 6; i++) {
-        loadImage(`images/image${i + 1}.png`, img => {
+        loadImage(images[i], img => {
             let scaleFactor = desiredImageHeight / img.height;
             img.resize(img.width * scaleFactor, img.height * scaleFactor);
             images[i] = img;
