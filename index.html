@@ -23,7 +23,7 @@
     <script>
 let images = [null, null, null, null, null, null];
 const transparencyThreshold = 128;
-const numOfStreams = 3000;
+const numOfStreams = 4000;
 let imgCenter; 
 let pointImageOverlapCache = {};  
 let circleDiameter;
@@ -40,12 +40,12 @@ function preload() {
     circleDiameter = Math.min(windowWidth, windowHeight);
     let desiredImageHeight = circleDiameter * 2;
 
-    images = ["https://kpzrp2bbgjpf5gvdaikocuyl3hfa77wsbngqe6kj47rdfjtp7lya.arweave.net/U_MX6CEyXl6aowIU4VML2coP_tILTQJ5SefiMqZv-vA",
-                  "https://jyih5ai5sjmpj5az4dtxkjvfqzkkgpfitwpngzp4bmk3a7tq23da.arweave.net/ThB-gR2SWPT0GeDndSalhlSjPKidntNl_AsVsH5w1sY",
-                  "https://j2zvf3kjfxl2dfkafroknhd2tuy5q4a7i7ja6kc7hxbx322xfkha.arweave.net/TrNS7Ukt16GVQCxcppx6nTHYcB9H0g8oXz3DfetXKo4",
-                  "https://c7vfzkekthubd7yyew3ssdmts64wddnttksnvgjdjiciv54xuauq.arweave.net/F-pcqIqZ6BH_GCW3KQ2Tl7lhjbOapNqZI0oEiveXoCk",
-                  "https://7zsk62sw4arozujvpzldg4pml3z7h2lcqrrtyhop73m4r6qflusa.arweave.net/_mSvalbgIuzRNX5WM3HsXvPz6WKEYzwdz_7ZyPoFXSQ",
-                  "https://egzo6khgnshi7wopzvsbzr7venzekexq56weulropr2dmeyxmlnq.arweave.net/IbLvKOZsjo_Zz81kHMf1I3JFEvDvrEouLnx0NhMXYts"]
+    images = ["https://znshnudxiwqjzey53j6zhruzlifqouj7zgzpig3l3nqjfome6q6q.arweave.net/y2R20HdFoJyTHdp9k8aZWgsHUT_JsvQba9tgkrmE9D0",
+                  "https://56a25m2jsfbffzh3phbnl773tb3jtpzpqnjlwh423xl6uq6vbarq.arweave.net/74Gus0mRQlLk-3nC1f_7mHaZvy-DUrsfmt3X6kPVCCM",
+                  "https://hfike2q5d7634lxehpuznrjkpkma5i7d6ekjyz6lydksccayzrcq.arweave.net/OVCiah0f_b4u5DvplsUqepgOo-PxFJxny8DVIQgYzEU",
+                  "https://sei3j7cn2nab5ywusjywpi6ievpgsqo2o6oz6tqz4fdne4owk6oq.arweave.net/kRG0_E3TQB7i1JJxZ6PIJV5pQdp3nZ9OGeFG0nHWV50",
+                  "https://rzonho5c3yrvfcrbgpqcvacda4hmos32tbgiocb2ckk423iwiugq.arweave.net/jlzTu6LeI1KKITPgKoBDBw7HS3qYTIcIOhKVzW0WRQ0",
+                  "https://hhajummqy2pjdlj2zlmjds6wvs2ag2ogjklsmh2vvid4iew3v5aa.arweave.net/OcCaMZDGnpGtOsrYkcvWrLQDacZKlyYfVaoHxBLbr0A"]
     for (let i = 0; i < 6; i++) {
         loadImage(images[i], img => {
             let scaleFactor = desiredImageHeight / img.height;
@@ -70,7 +70,7 @@ function generateStreams() {
     // Adjust numOfStreams based on the ratio
     let adjustedNumOfStreams = Math.round(numOfStreams * areaRatio);
 
-    const percentages = [0.5, 0.175, 0.105, .095, 0.05, 0.075];
+    const percentages = [0.6, 0.15, 0.075, .05, 0.075, 0.05];
     desiredStreamCounts = [];
 
     for (let j = 0; j < 6; j++) {
