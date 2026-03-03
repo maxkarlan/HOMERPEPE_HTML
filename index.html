@@ -23,36 +23,96 @@
     <script>
 let images = [null, null, null, null, null, null];
 const transparencyThreshold = 128;
-const numOfStreams = 4000;
+const numOfStreams = 2500;
 let imgCenter; 
 let pointImageOverlapCache = {};  
 let circleDiameter;
 let streamGroups = [];
 let desiredStreamCounts = [];
 let totalStreamsToGenerate = 0;
-const REF_AREA = 1920 * 1080;  // Assuming 1920x1080 as the reference resolution where numOfStreams was 900.
-const BASE_SPEED = .01;  // the basic speed when there's just one stream
-const LOG_SCALE_FACTOR = .95;  // scaling factor for logarithmic relationship
-//const SPEED_INCREMENT = 0.01;  // the amount of speed to be added for each additional stream
+const REF_AREA = 1920 * 1080;
+const BASE_SPEED = 5;
+const LOG_SCALE_FACTOR = .9;
 
+const IMAGE_TX_IDS = [
+    "y2R20HdFoJyTHdp9k8aZWgsHUT_JsvQba9tgkrmE9D0",
+    "74Gus0mRQlLk-3nC1f_7mHaZvy-DUrsfmt3X6kPVCCM",
+    "OVCiah0f_b4u5DvplsUqepgOo-PxFJxny8DVIQgYzEU",
+    "kRG0_E3TQB7i1JJxZ6PIJV5pQdp3nZ9OGeFG0nHWV50",
+    "jlzTu6LeI1KKITPgKoBDBw7HS3qYTIcIOhKVzW0WRQ0",
+    "OcCaMZDGnpGtOsrYkcvWrLQDacZKlyYfVaoHxBLbr0A"
+];
 
-function preload() {
-    circleDiameter = Math.min(windowWidth, windowHeight);
-    let desiredImageHeight = circleDiameter * 2;
+const DEFAULT_GATEWAY = "https://ar-io.dev";
+const CORS_PROXY = "https://corsproxy.io/?";
 
-    images = ["https://znshnudxiwqjzey53j6zhruzlifqouj7zgzpig3l3nqjfome6q6q.arweave.net/y2R20HdFoJyTHdp9k8aZWgsHUT_JsvQba9tgkrmE9D0",
-                  "https://56a25m2jsfbffzh3phbnl773tb3jtpzpqnjlwh423xl6uq6vbarq.arweave.net/74Gus0mRQlLk-3nC1f_7mHaZvy-DUrsfmt3X6kPVCCM",
-                  "https://hfike2q5d7634lxehpuznrjkpkma5i7d6ekjyz6lydksccayzrcq.arweave.net/OVCiah0f_b4u5DvplsUqepgOo-PxFJxny8DVIQgYzEU",
-                  "https://sei3j7cn2nab5ywusjywpi6ievpgsqo2o6oz6tqz4fdne4owk6oq.arweave.net/kRG0_E3TQB7i1JJxZ6PIJV5pQdp3nZ9OGeFG0nHWV50",
-                  "https://rzonho5c3yrvfcrbgpqcvacda4hmos32tbgiocb2ckk423iwiugq.arweave.net/jlzTu6LeI1KKITPgKoBDBw7HS3qYTIcIOhKVzW0WRQ0",
-                  "https://hhajummqy2pjdlj2zlmjds6wvs2ag2ogjklsmh2vvid4iew3v5aa.arweave.net/OcCaMZDGnpGtOsrYkcvWrLQDacZKlyYfVaoHxBLbr0A"]
-    for (let i = 0; i < 6; i++) {
-        loadImage(images[i], img => {
-            let scaleFactor = desiredImageHeight / img.height;
-            img.resize(img.width * scaleFactor, img.height * scaleFactor);
-            images[i] = img;
-        });
+function isOnArweave() {
+    let origin = window.location.origin;
+    if (!origin || origin === 'null') return false;
+    for (let gw of ['arweave.net', 'ar-io.dev', 'g8way.io', 'arweave.dev']) {
+        if (origin.indexOf(gw) !== -1) return true;
     }
+    return false;
+}
+
+function getGateway() {
+    let origin = window.location.origin;
+    if (origin && origin !== 'null' && !origin.startsWith('file')) {
+        for (let knownGw of ['ar-io.dev', 'arweave.net', 'g8way.io']) {
+            if (origin.indexOf(knownGw) !== -1) return origin;
+        }
+    }
+    return DEFAULT_GATEWAY;
+}
+
+function getImageUrl(txId) {
+    let directUrl = getGateway() + '/' + txId;
+    if (isOnArweave()) return directUrl;
+    return CORS_PROXY + encodeURIComponent(directUrl);
+}
+
+let imagesLoaded = 0;
+let imagesTotal = IMAGE_TX_IDS.length;
+let desiredImageHeight;
+
+function loadArweaveImage(idx) {
+    let url = getImageUrl(IMAGE_TX_IDS[idx]);
+    let imgEl = new Image();
+    imgEl.crossOrigin = 'anonymous';
+    imgEl.onload = function() {
+        let p5img = createImage(imgEl.naturalWidth, imgEl.naturalHeight);
+        p5img.drawingContext.drawImage(imgEl, 0, 0);
+        p5img.loadPixels();
+        let scaleFactor = desiredImageHeight / p5img.height;
+        p5img.resize(p5img.width * scaleFactor, p5img.height * scaleFactor);
+        images[idx] = p5img;
+        imagesLoaded++;
+    };
+    imgEl.onerror = function() {
+        console.warn('Failed to load image ' + idx + ' from ' + url);
+        images[idx] = null;
+        imagesLoaded++;
+    };
+    imgEl.src = url;
+}
+
+function setup() {
+    circleDiameter = Math.min(windowWidth, windowHeight);
+    desiredImageHeight = circleDiameter * 2;
+
+    for (let i = 0; i < IMAGE_TX_IDS.length; i++) {
+        loadArweaveImage(i);
+    }
+
+    for (let i = 0; i < 6; i++) {
+        streamGroups.push([]);
+    }
+
+    createCanvas(windowWidth, windowHeight);
+    imgCenter = createVector(width / 2, height / 2);
+    background(135, 206, 235);
+
+    generateStreams();
 }
 
 function getCurrentAttractMode() {
@@ -70,7 +130,7 @@ function generateStreams() {
     // Adjust numOfStreams based on the ratio
     let adjustedNumOfStreams = Math.round(numOfStreams * areaRatio);
 
-    const percentages = [0.6, 0.15, 0.075, .05, 0.075, 0.05];
+    const percentages = [0.6, 0.175, 0.075, .05, 0.075, 0.025];
     desiredStreamCounts = [];
 
     for (let j = 0; j < 6; j++) {
@@ -82,20 +142,8 @@ function generateStreams() {
 }
 
 
-function setup() {
-
-    for (let i = 0; i < 6; i++) {
-        streamGroups.push([]);
-    }
-
-    createCanvas(windowWidth, windowHeight);
-    imgCenter = createVector(width / 2, height / 2);
-    background(135, 206, 235);
-
-    generateStreams();  // Generate streams based on window size
-}
-
 function windowResized() {
+    if (!imgCenter) return;
     // Resize the canvas to the new window width and height
     resizeCanvas(windowWidth, windowHeight);
     imgCenter.set(width / 2, height / 2);  // Reset the center as the window has been resized
@@ -106,7 +154,7 @@ function windowResized() {
     
     for (let i = 0; i < images.length; i++) {
         let img = images[i];
-        if (img) {
+        if (img && typeof img !== 'string' && img.width) {
             let scaleFactor = desiredImageHeight / img.height;
             img.resize(img.width * scaleFactor, img.height * scaleFactor);
         }
@@ -168,17 +216,17 @@ function adjustStreams() {
         }
 
         while (streamGroups[j].length > desiredStreamCounts[j]) {
-            // Start fading the last stream
-            streamGroups[j][streamGroups[j].length - 1].fade();
-            
-            // Remove the stream if it's fully faded
-            if(streamGroups[j][streamGroups[j].length - 1].alpha <= 0) {
-                streamGroups[j].pop();
-            } else {
-                break; // Only fade one stream at a time for smoother effect
-            }
-        }
-        
+    // Start fading the last stream
+    streamGroups[j][streamGroups[j].length - 1].fade();
+    
+    // Remove the stream if it's fully faded
+    if(streamGroups[j][streamGroups[j].length - 1].alpha <= 0) {
+        streamGroups[j].pop();
+    } else {
+        break; // Only fade one stream at a time for smoother effect
+    }
+}
+
     }
 }
 
@@ -216,15 +264,12 @@ class Stream {
         this.initStream(startPoint);
         this.insideImage = this.isOverAssignedImage(this.points[0]);
         this.alpha = 255;
+
     }
     
 
     changeMode() {
         this.attractMode = !this.attractMode;
-    }
-
-    fade() {
-        this.alpha -= 200;  // Decrement by 5 for a moderate fading speed. Adjust as needed.
     }
   
       isOverAnyImage(point) {
@@ -263,6 +308,7 @@ class Stream {
     }
 
     isOverImage(point, img) {
+        if (!img || typeof img === 'string' || !img.width) return false;
         let imgX = point.x - (width / 2 - img.width / 2);
         let imgY = point.y - (height / 2 - img.height / 2);
         if (imgX >= 0 && imgX < img.width && imgY >= 0 && imgY < img.height) {
@@ -283,20 +329,19 @@ this.currentAngle = -this.currentAngle;  // Reflect vertically
 }
 
 get totalStreamsCount() {
-    let totalStreams = 0;
-    for (let streams of streamGroups) {
-        totalStreams += streams.length;
+        let totalStreams = 0;
+        for (let streams of streamGroups) {
+            totalStreams += streams.length;
+        }
+        return totalStreams;
     }
-    return totalStreams;
-}
 
-update() {
-let lastPoint = this.points[this.points.length - 1];
-let newPoint;
-
+    update() {
+        let lastPoint = this.points[this.points.length - 1];
+        let newPoint;
 
         // Calculate the speed for attractMode based on total streams count using logarithmic relationship
-        let speed = this.attractMode ? BASE_SPEED + LOG_SCALE_FACTOR * Math.log(this.totalStreamsCount + 1) : 12;
+        let speed = this.attractMode ? BASE_SPEED + LOG_SCALE_FACTOR * Math.log(this.totalStreamsCount + 1) : 8;
 
 if (this.attractMode) {
 if (this.isOutsideAllImages(lastPoint) || this.insideImage || this.isOverAssignedImage(lastPoint)) {
@@ -323,7 +368,7 @@ newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint); //
 this.stayWithinBounds(newPoint);  // Check and adjust for bounds
 
 this.points.push(newPoint);
-this.noiseOffset += 0.005;
+this.noiseOffset += 0.075;
 
 if (this.points.length > 100) {
 this.points.shift();
@@ -359,6 +404,10 @@ this.insideImage = this.isOverAssignedImage(lastPoint);
         let angleTowardsImage = p5.Vector.sub(imgCenter, point).heading();
         return angleTowardsImage;
     }
+
+    fade() {
+    this.alpha -= 250;  // Decrement by 5 for a moderate fading speed. Adjust as needed.
+}
 
     display() {
         noFill();
