@@ -66,17 +66,16 @@ function getGateway() {
 }
 
 function getImageUrl(txId) {
-    let directUrl = getGateway() + '/' + txId;
-    if (isOnArweave()) return directUrl;
-    return CORS_PROXY + encodeURIComponent(directUrl);
+    return getGateway() + '/' + txId;
 }
 
 let imagesLoaded = 0;
 let imagesTotal = IMAGE_TX_IDS.length;
 let desiredImageHeight;
 
-function loadArweaveImage(idx) {
-    let url = getImageUrl(IMAGE_TX_IDS[idx]);
+function loadArweaveImage(idx, useCorsProxy) {
+    let directUrl = getGateway() + '/' + IMAGE_TX_IDS[idx];
+    let url = useCorsProxy ? CORS_PROXY + encodeURIComponent(directUrl) : directUrl;
     let imgEl = new Image();
     imgEl.crossOrigin = 'anonymous';
     imgEl.onload = function() {
@@ -89,9 +88,14 @@ function loadArweaveImage(idx) {
         imagesLoaded++;
     };
     imgEl.onerror = function() {
-        console.warn('Failed to load image ' + idx + ' from ' + url);
-        images[idx] = null;
-        imagesLoaded++;
+        if (!useCorsProxy) {
+            console.warn('Direct load failed for image ' + idx + ', retrying with CORS proxy');
+            loadArweaveImage(idx, true);
+        } else {
+            console.warn('Failed to load image ' + idx + ' from both direct and proxy');
+            images[idx] = null;
+            imagesLoaded++;
+        }
     };
     imgEl.src = url;
 }
@@ -101,7 +105,7 @@ function setup() {
     desiredImageHeight = circleDiameter * 2;
 
     for (let i = 0; i < IMAGE_TX_IDS.length; i++) {
-        loadArweaveImage(i);
+        loadArweaveImage(i, false);
     }
 
     for (let i = 0; i < 6; i++) {
