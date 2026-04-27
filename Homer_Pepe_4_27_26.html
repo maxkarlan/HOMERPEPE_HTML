@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOMERPEPE.ORIGINS</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script>
+const NUM_IMAGES = 5;
+let images = new Array(NUM_IMAGES).fill(null);
+const transparencyThreshold = 128;
+const numOfStreams = 2500;
+let imgCenter;
+let pointImageOverlapCache = {};
+let circleDiameter;
+let streamGroups = [];
+let desiredStreamCounts = [];
+let totalStreamsToGenerate = 0;
+const REF_AREA = 1920 * 1080;
+const BASE_SPEED = .01;
+const LOG_SCALE_FACTOR = .95;
+
+// Local image paths (sit alongside this HTML file)
+const IMAGE_PATHS = [
+    "https://2phe44it74atqev2nfeor73r5px2qx52pnwlo6xwjkjyxdjqzzqq.arweave.net/085OcRP_ATgSumlI6P9x6--oX7p7bLd69kqTi40wzmE",
+    "https://hsg5vgr6tarrvek4bnoqs4dpcbfi4bffxelen3fe2t5rwc2fwk7q.arweave.net/PI3amj6YIxqRXAtdCXBvEEqOBKW5FkbspNT7GwtFsr8",
+    "https://zvr3mn4ndxclutd3dcjjsfdvbssa2fezheieeoffth6jftklei4q.arweave.net/zWO2N40dxLpMexiSmRR1DKQNFJk5EEI4pZn8ks1LIjk",
+    "https://renhckhivtdowwgfdukpe6guiv7xtnvgidfhwe6gp6xe6qsvnqgq.arweave.net/iRpxKOisxutYxR0U8njURX95tqZAynsTxn-uT0JVbA0",
+    "https://2ph4iwlgzsn4n45kd3yquyvqlh7zbouybtojuoyfdx5tmh75bsqq.arweave.net/08_EWWbMm8bzqh7xCmKwWf-QupgM3Jo7BR37Nh_9DKE"
+];
+
+function preload() {
+    circleDiameter = Math.min(windowWidth, windowHeight);
+    let desiredImageHeight = circleDiameter * 2;
+
+    for (let i = 0; i < NUM_IMAGES; i++) {
+        loadImage(IMAGE_PATHS[i], img => {
+            let scaleFactor = desiredImageHeight / img.height;
+            img.resize(img.width * scaleFactor, img.height * scaleFactor);
+            images[i] = img;
+        });
+    }
+}
+
+function getCurrentAttractMode() {
+    if (streamGroups.length === 0 || streamGroups[0].length === 0) {
+        return true;
+    }
+    return streamGroups[0][0].attractMode;
+}
+
+function generateStreams() {
+    let areaRatio = (windowWidth * windowHeight) / REF_AREA;
+    let adjustedNumOfStreams = Math.round(numOfStreams * areaRatio);
+
+    // 5 images: combined the two cream slots from the original 6-image version (0.075 + 0.05 -> 0.125)
+    const percentages = [0.6, 0.15, 0.125, 0.075, 0.05];
+    desiredStreamCounts = [];
+
+    for (let j = 0; j < NUM_IMAGES; j++) {
+        let desiredCountForImage = Math.round(adjustedNumOfStreams * percentages[j]);
+        desiredStreamCounts.push(desiredCountForImage);
+    }
+
+    totalStreamsToGenerate = adjustedNumOfStreams;
+}
+
+
+function setup() {
+    for (let i = 0; i < NUM_IMAGES; i++) {
+        streamGroups.push([]);
+    }
+
+    createCanvas(windowWidth, windowHeight);
+    imgCenter = createVector(width / 2, height / 2);
+    background(135, 206, 235);
+
+    generateStreams();
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    imgCenter.set(width / 2, height / 2);
+
+    circleDiameter = Math.min(windowWidth, windowHeight);
+    let desiredImageHeight = circleDiameter * 2;
+
+    for (let i = 0; i < images.length; i++) {
+        let img = images[i];
+        if (img) {
+            let scaleFactor = desiredImageHeight / img.height;
+            img.resize(img.width * scaleFactor, img.height * scaleFactor);
+        }
+    }
+
+    imgCenter.set(width / 2, height / 2);
+
+    generateStreams();
+}
+
+function isOverAnyImageCached(point) {
+    let cacheKey = `${point.x},${point.y}`;
+
+    if (pointImageOverlapCache.hasOwnProperty(cacheKey)) {
+        return pointImageOverlapCache[cacheKey];
+    }
+
+    let result = isOverAnyImage(point);
+    pointImageOverlapCache[cacheKey] = result;
+
+    return result;
+}
+
+function draw() {
+    background(135, 206, 235);
+    pointImageOverlapCache = {};
+    drawTransparentCircle();
+
+    adjustStreams();
+
+    for (let streams of streamGroups) {
+        for (let s of streams) {
+            s.update();
+            s.display();
+        }
+    }
+}
+
+function adjustStreams() {
+    // 5 colors mapped to the 5 images (cream slot consolidated from the 6-color original)
+    const colors = [
+        [0, 96, 0],
+        [96, 216, 0],
+        [255, 253, 208],
+        [145, 56, 49],
+        [53, 57, 53]
+    ];
+
+    for (let j = 0; j < NUM_IMAGES; j++) {
+        while (streamGroups[j].length < desiredStreamCounts[j]) {
+            let samplePoint = streamGroups[j].length > 0 ? random(random(streamGroups[j]).points) : null;
+            streamGroups[j].push(new Stream(colors[j], j, samplePoint));
+        }
+
+        while (streamGroups[j].length > desiredStreamCounts[j]) {
+            streamGroups[j][streamGroups[j].length - 1].fade();
+
+            if (streamGroups[j][streamGroups[j].length - 1].alpha <= 0) {
+                streamGroups[j].pop();
+            } else {
+                break;
+            }
+        }
+    }
+}
+
+function isOverAnyImage(point) {
+    for (let img of images) {
+        if (isOverImageStandalone(point, img)) return true;
+    }
+    return false;
+}
+
+function isOverImageStandalone(point, img) {
+    if (!img || typeof img === 'string' || !img.width) return false;
+    let imgX = point.x - (width / 2 - img.width / 2);
+    let imgY = point.y - (height / 2 - img.height / 2);
+    if (imgX >= 0 && imgX < img.width && imgY >= 0 && imgY < img.height) {
+        let pixelColor = img.get(imgX, imgY);
+        return alpha(pixelColor) > transparencyThreshold && isInsideCircle(point);
+    }
+    return false;
+}
+
+function drawTransparentCircle() {
+    fill(255, 0);
+    noStroke();
+    ellipse(width / 2, height / 2, circleDiameter);
+}
+
+function isInsideCircle(point) {
+    return dist(point.x, point.y, imgCenter.x, imgCenter.y) <= circleDiameter / 2;
+}
+
+function mousePressed() {
+    for (let streams of streamGroups) {
+        for (let s of streams) {
+            s.changeMode();
+        }
+    }
+}
+
+
+class Stream {
+    constructor(color, assignedImageIdx, startPoint = null) {
+        this.color = color;
+        this.points = [];
+        this.noiseOffset = random(1000);
+        this.currentAngle = random(TWO_PI);
+        this.attractMode = getCurrentAttractMode();
+        this.assignedImageIdx = assignedImageIdx;
+        this.initStream(startPoint);
+        this.insideImage = this.isOverAssignedImage(this.points[0]);
+        this.alpha = 255;
+    }
+
+
+    changeMode() {
+        this.attractMode = !this.attractMode;
+    }
+
+    fade() {
+        this.alpha -= 200;
+    }
+
+    isOverAnyImage(point) {
+        return isOverAnyImageCached(point);
+    }
+
+    initStream(startPoint = null) {
+        if (startPoint) {
+            this.points.push(startPoint);
+        } else {
+            let startX = random(width);
+            let startY = random(height);
+
+            while (this.isOverAnyImage(createVector(startX, startY))) {
+                startX = random(width);
+                startY = random(height);
+            }
+
+            this.points.push(createVector(startX, startY));
+        }
+    }
+
+    isOutsideAllImages(point) {
+        return !this.isOverAnyImage(point);
+    }
+
+    isOverAssignedImage(point) {
+        return this.isOverImage(point, images[this.assignedImageIdx]);
+    }
+
+    isOverImage(point, img) {
+        if (!img || typeof img === 'string' || !img.width) return false;
+        let imgX = point.x - (width / 2 - img.width / 2);
+        let imgY = point.y - (height / 2 - img.height / 2);
+        if (imgX >= 0 && imgX < img.width && imgY >= 0 && imgY < img.height) {
+            let pixelColor = img.get(imgX, imgY);
+            return alpha(pixelColor) > transparencyThreshold && isInsideCircle(point);
+        }
+        return false;
+    }
+
+    stayWithinBounds(point) {
+        const buffer = 5;
+        if (point.x <= buffer || point.x >= width - buffer) {
+            this.currentAngle = PI - this.currentAngle;
+        }
+        if (point.y <= buffer || point.y >= height - buffer) {
+            this.currentAngle = -this.currentAngle;
+        }
+    }
+
+    get totalStreamsCount() {
+        let totalStreams = 0;
+        for (let streams of streamGroups) {
+            totalStreams += streams.length;
+        }
+        return totalStreams;
+    }
+
+    update() {
+        let lastPoint = this.points[this.points.length - 1];
+        let newPoint;
+
+        let speed = this.attractMode ? BASE_SPEED + LOG_SCALE_FACTOR * Math.log(this.totalStreamsCount + 1) : 12;
+
+        if (this.attractMode) {
+            if (this.isOutsideAllImages(lastPoint) || this.insideImage || this.isOverAssignedImage(lastPoint)) {
+                this.currentAngle = this.calculateAngleTowardsImage(lastPoint, this.assignedImageIdx);
+            }
+        } else {
+            if (this.isOverAnyImage(lastPoint)) {
+                this.currentAngle = this.calculateAngleAwayFromClosestImageCenter(lastPoint);
+            }
+        }
+
+        let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI, PI);
+        this.currentAngle += angleVariation;
+
+        newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint);
+
+        if (this.attractMode && this.insideImage && !this.isOverAssignedImage(newPoint)) {
+            this.currentAngle += PI;
+            newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint);
+        }
+
+        this.stayWithinBounds(newPoint);
+
+        this.points.push(newPoint);
+        this.noiseOffset += 0.005;
+
+        if (this.points.length > 100) {
+            this.points.shift();
+        }
+
+        this.insideImage = this.isOverAssignedImage(lastPoint);
+    }
+
+    calculateAngleAwayFromClosestImageCenter(point) {
+        let closestDistance = Infinity;
+        let closestImageCenter;
+
+        for (let img of images) {
+            let distance = dist(point.x, point.y, imgCenter.x, imgCenter.y);
+            if (distance < closestDistance && this.isOverImage(point, img)) {
+                closestDistance = distance;
+                closestImageCenter = imgCenter;
+            }
+        }
+
+        if (closestImageCenter) {
+            return p5.Vector.sub(point, closestImageCenter).heading();
+        }
+
+        return random(TWO_PI);
+    }
+
+    calculateAngleTowardsImage(point, imgIdx) {
+        if (this.insideImage) {
+            return random(TWO_PI);
+        }
+        let angleTowardsImage = p5.Vector.sub(imgCenter, point).heading();
+        return angleTowardsImage;
+    }
+
+    display() {
+        noFill();
+        stroke(this.color[0], this.color[1], this.color[2], this.alpha);
+        strokeWeight(.2);
+        beginShape();
+        for (let pt of this.points) {
+            vertex(pt.x, pt.y)
+        }
+        endShape();
+    }
+}
+    </script>
+</body>
+
+</html>
