@@ -34,21 +34,50 @@ const REF_AREA = 1920 * 1080;
 const BASE_SPEED = .01;
 const LOG_SCALE_FACTOR = .95;
 
-// Local image paths (sit alongside this HTML file)
 const IMAGE_PATHS = [
-    "https://2phe44it74atqev2nfeor73r5px2qx52pnwlo6xwjkjyxdjqzzqq.arweave.net/085OcRP_ATgSumlI6P9x6--oX7p7bLd69kqTi40wzmE",
-    "https://hsg5vgr6tarrvek4bnoqs4dpcbfi4bffxelen3fe2t5rwc2fwk7q.arweave.net/PI3amj6YIxqRXAtdCXBvEEqOBKW5FkbspNT7GwtFsr8",
-    "https://zvr3mn4ndxclutd3dcjjsfdvbssa2fezheieeoffth6jftklei4q.arweave.net/zWO2N40dxLpMexiSmRR1DKQNFJk5EEI4pZn8ks1LIjk",
-    "https://renhckhivtdowwgfdukpe6guiv7xtnvgidfhwe6gp6xe6qsvnqgq.arweave.net/iRpxKOisxutYxR0U8njURX95tqZAynsTxn-uT0JVbA0",
-    "https://2ph4iwlgzsn4n45kd3yquyvqlh7zbouybtojuoyfdx5tmh75bsqq.arweave.net/08_EWWbMm8bzqh7xCmKwWf-QupgM3Jo7BR37Nh_9DKE"
+    "ar://085OcRP_ATgSumlI6P9x6--oX7p7bLd69kqTi40wzmE",
+    "ar://PI3amj6YIxqRXAtdCXBvEEqOBKW5FkbspNT7GwtFsr8",
+    "ar://zWO2N40dxLpMexiSmRR1DKQNFJk5EEI4pZn8ks1LIjk",
+    "ar://iRpxKOisxutYxR0U8njURX95tqZAynsTxn-uT0JVbA0",
+    "ar://08_EWWbMm8bzqh7xCmKwWf-QupgM3Jo7BR37Nh_9DKE"
 ];
+
+const AR_GATEWAYS = [
+    "https://turbo-gateway.com/",
+    "https://arweave.net/",
+    "https://ardrive.net",
+    "https://ar-io.net/",
+    "https://permagate.io/",
+    "https://g8way.io/"
+];
+
+function loadArImage(uri, onSuccess) {
+    if (!uri.startsWith("ar://")) {
+        loadImage(uri, onSuccess);
+        return;
+    }
+    const txId = uri.slice(5);
+    let i = 0;
+    const tryNext = () => {
+        if (i >= AR_GATEWAYS.length) {
+            console.error("All gateways failed for", uri);
+            return;
+        }
+        const url = AR_GATEWAYS[i++] + txId;
+        loadImage(url, onSuccess, err => {
+            console.warn("Gateway failed:", url, err);
+            tryNext();
+        });
+    };
+    tryNext();
+}
 
 function preload() {
     circleDiameter = Math.min(windowWidth, windowHeight);
     let desiredImageHeight = circleDiameter * 2;
 
     for (let i = 0; i < NUM_IMAGES; i++) {
-        loadImage(IMAGE_PATHS[i], img => {
+        loadArImage(IMAGE_PATHS[i], img => {
             let scaleFactor = desiredImageHeight / img.height;
             img.resize(img.width * scaleFactor, img.height * scaleFactor);
             images[i] = img;
